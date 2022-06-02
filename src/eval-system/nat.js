@@ -1,4 +1,4 @@
-import Language from "lex-bnf";
+const Language = require("lex-bnf");
 
 const { syntax, literal: lit, numlit } = Language;
 
@@ -122,9 +122,11 @@ const evalExp = (tree) => {
   }
 };
 
-export const calcNat = (question) => {
+const calcNat = (question) => {
   const result = calc.parse(question);
   const tree = calc.evaluate(result);
 
   return evalExp(tree);
 };
+
+module.exports = calcNat;

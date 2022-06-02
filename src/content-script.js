@@ -1,4 +1,4 @@
-import { solve } from "./background";
+const solve = require("./background");
 
 const question = document.getElementById("question").innerHTML;
 if (question) {

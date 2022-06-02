@@ -1,10 +1,19 @@
-import { calcNat } from "./eval-system/nat/parser";
+const calcCompareNat1 = require("./eval-system/compareNat1.js");
+const calcCompareNat2 = require("./eval-system/compareNat2.js");
+const calcCompareNat3 = require("./eval-system/compareNat3.js");
+const calcNat = require("./eval-system/nat.js");
 
-export const solve = (question, type) => {
+const solve = (question, type) => {
   try {
     switch (type) {
       case "Nat":
         return calcNat(question);
+      case "CompareNat1":
+        return calcCompareNat1(question);
+      case "CompareNat2":
+        return calcCompareNat2(question);
+      case "CompareNat3":
+        return calcCompareNat3(question);
       default:
         return "Error";
     }
@@ -14,5 +23,7 @@ export const solve = (question, type) => {
   }
 };
 
-// const answer = solve("S(S(Z)) times Z is Z", "Nat");
+module.exports = solve;
+
+// const answer = solve("S(S(Z)) is less than S(S(S(S(S(Z)))))", "CompareNat3");
 // console.log(answer);
