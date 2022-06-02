@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "osunaba-solver",
+  "version": "0.0.1",
+  "description": "演習システム http://www.fos.kuis.kyoto-u.ac.jp/~igarashi/CoPL を自動で解く拡張機能",
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://www.fos.kuis.kyoto-u.ac.jp/~igarashi/CoPL/*"],
+      "run_at": "document_idle",
+      "js": ["js/content-script.js"]
+    }
+  ]
+}
