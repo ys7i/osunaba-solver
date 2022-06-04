@@ -3,6 +3,11 @@
   "name": "osunaba-solver",
   "version": "0.0.1",
   "description": "演習システム http://www.fos.kuis.kyoto-u.ac.jp/~igarashi/CoPL を自動で解く拡張機能",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "background": {
     "service_worker": "js/background.js"
   },

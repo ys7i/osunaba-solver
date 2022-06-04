@@ -3,8 +3,36 @@ const Language = require("lex-bnf");
 const { syntax, literal: lit, numlit } = Language;
 
 const calc = new Language([
+  syntax("top", [["add-exp", lit("evalto"), "nat-exp"]], (term) => {
+    const terms = [].concat(...term.contents());
+    return {
+      type: "eval",
+      body: terms[0],
+      value: terms[2],
+      content: `${terms[0].content} evalto ${terms[2].content}`,
+    };
+  }),
   syntax(
-    "top",
+    "add-exp",
+    [
+      ["mult-exp", "add-exp-rest"],
+      [lit("("), "mult-exp", "add-exp-rest", lit(")")],
+    ],
+    (term) => {
+      const terms = [].concat(...term.contents());
+      const addExpRest = terms.length === 2 ? terms[1] : terms[2];
+      const litLeft = terms.length === 2 ? "" : "(";
+      const litRight = terms.length === 2 ? "" : ")";
+      return {
+        type: "add",
+        body: terms[0],
+        value: addExpRest[2],
+        content: `${litLeft} ${terms[0].content} evalto ${terms[2].content} ${litRight}`,
+      };
+    }
+  ),
+  syntax(
+    "nat-pt",
     [
       ["nat-exp", lit("plus"), "nat-exp", lit("is"), "nat-exp"],
       ["nat-exp", lit("times"), "nat-exp", lit("is"), "nat-exp"],

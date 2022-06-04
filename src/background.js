@@ -25,5 +25,5 @@ const solve = (question, type) => {
 
 module.exports = solve;
 
-// const answer = solve("S(S(Z)) is less than S(S(S(S(S(Z)))))", "CompareNat3");
+// const answer = solve("S(S(Z)) plus Z is S(S(Z))", "Nat");
 // console.log(answer);
