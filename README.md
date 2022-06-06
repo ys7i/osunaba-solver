@@ -2,7 +2,7 @@
 
 osunaba-solverは[プログラミング言語の基礎概念](http://www.fos.kuis.kyoto-u.ac.jp/~igarashi/CoPL/index.cgi)の演習システムを自動で解くGoogle Chromeの拡張機能です。
 
-> 現在は導出システムEvalNatExpまで対応しています。
+> 現在は導出システムReduceNatExpまで対応しています。
 
 
 ## 使い方

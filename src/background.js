@@ -3,6 +3,7 @@ const calcCompareNat1 = require("./eval-system/compareNat1.js");
 const calcCompareNat2 = require("./eval-system/compareNat2.js");
 const calcCompareNat3 = require("./eval-system/compareNat3.js");
 const calcEvalNatExp = require("./eval-system/evalNatExp.js");
+const reduceNatExp = require("./eval-system/reduceNatExp");
 
 const solve = (question, type) => {
   try {
@@ -17,6 +18,8 @@ const solve = (question, type) => {
         return calcCompareNat3(question);
       case "EvalNatExp":
         return calcEvalNatExp(question);
+      case "ReduceNatExp":
+        return reduceNatExp(question);
       default:
         return "Error";
     }
@@ -28,5 +31,8 @@ const solve = (question, type) => {
 
 module.exports = solve;
 
-// const answer = solve("Z * (S(S(Z)) + S(S(Z))) evalto Z", "EvalNatExp");
+// const answer = solve(
+//   "S(Z) * S(Z) + S(Z) * S(Z) -d-&gt; S(Z) + S(Z) * S(Z)",
+//   "ReduceNatExp"
+// );
 // console.log(answer);
