@@ -1,25 +1,54 @@
 const Language = require("lex-bnf");
 
-const { syntax, literal: lit } = Language;
+const { syntax, literal: lit, numlit } = Language;
 
 const calc = new Language([
-  syntax("top", [["add-exp", lit("evalto"), "nat-exp"], ["nat-pt"]], (term) => {
-    const terms = [].concat(...term.contents());
-    if (terms.length > 1) {
-      return {
-        type: "eval",
-        body: terms[0],
-        value: terms[2],
-        content: `${terms[0].content} evalto ${terms[2].content}`,
-      };
-    }
-    return terms[0];
-  }),
   syntax(
-    "add-exp",
+    "top",
     [
-      ["mult-exp", "add-exp-rest*"],
-      [lit("("), "add-exp", lit(")")],
+      ["if-exp", lit("evalto"), "nat-exp"],
+      ["if-exp", lit("evalto"), "bool-exp"],
+      ["nat-pt"],
+    ],
+    (term) => {
+      const terms = [].concat(...term.contents());
+      if (terms.length > 1) {
+        return {
+          type: "eval",
+          body: terms[0],
+          value: terms[2],
+          content: `${terms[0].content} evalto ${terms[2].content}`,
+        };
+      }
+      return terms[0];
+    }
+  ),
+  syntax(
+    "if-exp",
+    [
+      [lit("if"), "less-exp", lit("then"), "less-exp", lit("else"), "less-exp"],
+      ["less-exp"],
+    ],
+    (term) => {
+      const terms = [].concat(...term.contents());
+      if (terms.length > 1) {
+        return {
+          type: "eval",
+          body: terms[1],
+          value: terms[3],
+          content: `if ${terms[1].content} then ${terms[3].content} evalto ${terms[5].content}`,
+        };
+      }
+      return terms[0];
+    }
+  ),
+  syntax(
+    "less-exp",
+    [
+      ["as-exp", lit("lt"), "as-exp"],
+      [lit("("), "less-exp", lit(")")],
+      ["as-exp"],
+      ["bool-exp"],
     ],
     (term) => {
       const terms = [].concat(...term.contents());
@@ -31,32 +60,82 @@ const calc = new Language([
         return terms[0];
       }
       let tree = {
-        type: "add",
+        type: "less",
         left: terms[0],
-        right: terms[1],
-        content: `${terms[0].content} + ${terms[1].content}`,
+        right: terms[2],
+        content: `${terms[0].content} < ${terms[2].content}`,
       };
+      return tree;
+    }
+  ),
+  syntax(
+    "as-exp",
+    [
+      ["mult-exp", "as-exp-rest*"],
+      [lit("("), "as-exp", lit(")")],
+    ],
+    (term) => {
+      const terms = [].concat(...term.contents());
+      if (terms[0] === "(") {
+        terms[1].content = "(" + terms[1] + ")";
+        return terms[1];
+      }
+      if (terms.length === 1) {
+        return terms[0];
+      }
+      let tree =
+        terms[1].type === "add-rest"
+          ? {
+              type: "add",
+              left: terms[0],
+              right: terms[1].data,
+              content: `${terms[0].content} + ${terms[1].data.content}`,
+            }
+          : {
+              type: "subtract",
+              left: terms[0],
+              right: terms[1].data,
+              content: `${terms[0].content} - ${terms[1].data.content}`,
+            };
       for (let i = 2; i < terms.length; i++) {
-        tree = {
-          type: "add",
-          left: tree,
-          right: terms[i],
-          content: `${tree.content} + ${terms[i].content}`,
-        };
+        tree =
+          terms[i].type === "add-rest"
+            ? {
+                type: "add",
+                left: tree,
+                right: terms[i].data,
+                content: `${tree.content} + ${terms[i].data.content}`,
+              }
+            : {
+                type: "subtract",
+                left: tree,
+                right: terms[i].data,
+                content: `${tree.content} + ${terms[i].data.content}`,
+              };
       }
       return tree;
     }
   ),
-  syntax("add-exp-rest", [[lit("+"), "mult-exp"]], (term) => {
-    const terms = [].concat(...term.contents());
-    return terms[1];
-  }),
+  syntax(
+    "as-exp-rest",
+    [
+      [lit("+"), "mult-exp"],
+      [lit("-"), "mult-exp"],
+    ],
+    (term) => {
+      const terms = [].concat(...term.contents());
+      if (terms[0] === "+") {
+        return { type: "add-rest", data: terms[1] };
+      }
+      return { type: "subtract-rest", data: terms[1] };
+    }
+  ),
   syntax(
     "mult-exp",
     [
       ["brace-exp", "mult-exp-rest*"],
       ["nat-exp", "mult-exp-rest*"],
-      [(lit("("), "add-exp", lit(")"))],
+      [(lit("("), "if-exp", lit(")"))],
     ],
     (term) => {
       const terms = [].concat(...term.contents());
@@ -95,7 +174,7 @@ const calc = new Language([
       return terms[1];
     }
   ),
-  syntax("brace-exp", [[lit("("), "add-exp", lit(")")]], (term) => {
+  syntax("brace-exp", [[lit("("), "as-exp", lit(")")]], (term) => {
     const terms = [].concat(...term.contents());
     tree = terms[1];
     tree.content = "(" + tree.content + ")";
@@ -147,21 +226,21 @@ const calc = new Language([
       }
     }
   ),
-  syntax(
-    "nat-exp",
-    [[lit("Z")], [lit("S"), lit("("), "nat-exp", lit(")")]],
-    (term) => {
-      const terms = [].concat(...term.contents());
-      if (terms[0] == "Z") {
-        return { type: "zero", content: "Z" };
-      }
-      return {
-        type: "succ",
-        next: terms[2],
-        content: `S(${terms[2].content})`,
-      };
-    }
-  ),
+  syntax("bool-exp", [[lit("true")], [lit("false")]], (term) => {
+    const terms = [].concat(...term.contents());
+    return {
+      type: terms[0],
+      content: terms[1],
+    };
+  }),
+  syntax("nat-exp", [[numlit]], (term) => {
+    const terms = [].concat(...term.contents());
+    return {
+      type: "nat",
+      value: parseInt(terms[0]),
+      content: String(terms[0]),
+    };
+  }),
 ]);
 
 const numToTree = (num) => {
@@ -344,10 +423,12 @@ const evalEvalExp = (tree) => {
   }
 };
 
-const calcEvalNatExp = (question) => {
+const calcEvalML1 = (question) => {
   const result = calc.parse(question);
+  console.log(result);
   const tree = calc.evaluate(result);
+  console.log(tree);
   return evalEvalExp(tree);
 };
 
-module.exports = calcEvalNatExp;
+module.exports = calcEvalML1;
