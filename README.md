@@ -1,6 +1,6 @@
 # osunaba-solver
 
-![icon](/public/icon128.png ,"icon")  
+![icon](/public/icon128.png)  
 osunaba-solver は[プログラミング言語の基礎概念](http://www.fos.kuis.kyoto-u.ac.jp/~igarashi/CoPL/index.cgi)の演習システムを自動で解く Google Chrome の拡張機能です。
 
 > 現在は導出システム EvalML1 まで対応しています。
