@@ -30,14 +30,14 @@ const calc = new Language([
       ["less-exp"],
     ],
     (term) => {
-      const terms = [].concat(...term.contents());
+      let terms = [].concat(...term.contents());
       if (terms.length > 1) {
         return {
           type: "if",
           guard: terms[1],
           left: terms[3],
           right: terms[5],
-          content: `if ${terms[1].content} then ${terms[3].content} evalto ${terms[5].content}`,
+          content: `if ${terms[1].content} then ${terms[3].content} else ${terms[5].content}`,
         };
       }
       return terms[0];
@@ -47,21 +47,21 @@ const calc = new Language([
     "less-exp",
     [
       ["as-exp", lit("lt"), "as-exp"],
-      [lit("("), "less-exp", lit(")")],
+      // [lit("("), "less-exp", lit(")")],
       ["as-exp"],
       ["bool-exp"],
     ],
     (term) => {
       const terms = [].concat(...term.contents());
-      if (terms[0] === "(") {
-        terms[1].content = "(" + terms[1] + ")";
-        return terms[1];
-      }
+      // if (terms[0] === "(") {
+      //   terms[1].content = "(" + terms[1] + ")";
+      //   return terms[1];
+      // }
       if (terms.length === 1) {
         return terms[0];
       }
       let tree = {
-        type: "less",
+        type: "lt",
         left: terms[0],
         right: terms[2],
         content: `${terms[0].content} < ${terms[2].content}`,
@@ -111,7 +111,7 @@ const calc = new Language([
                 type: "subtract",
                 left: tree,
                 right: terms[i].data,
-                content: `${tree.content} + ${terms[i].data.content}`,
+                content: `${tree.content} - ${terms[i].data.content}`,
               };
       }
       return tree;
@@ -137,9 +137,13 @@ const calc = new Language([
       ["brace-exp", "mult-exp-rest*"],
       ["nat-exp", "mult-exp-rest*"],
       [(lit("("), "if-exp", lit(")"))],
+      ["if-exp"],
     ],
     (term) => {
       const terms = [].concat(...term.contents());
+      if (terms.length === 1) {
+        return terms[0];
+      }
       if (terms[0] === "(") {
         terms[1].content = "(" + terms[1].content + ")";
         return terms[1];
@@ -230,13 +234,20 @@ const calc = new Language([
   syntax("bool-exp", [[lit("true")], [lit("false")]], (term) => {
     const terms = [].concat(...term.contents());
     return {
-      type: terms[0],
+      type: "bool",
       value: terms[0] === "true",
       content: terms[1],
     };
   }),
-  syntax("nat-exp", [[numlit]], (term) => {
+  syntax("nat-exp", [[numlit], [lit("-"), numlit]], (term) => {
     const terms = [].concat(...term.contents());
+    if (terms.length === 2) {
+      return {
+        type: "nat",
+        value: parseInt(terms[1]) * -1,
+        content: "-" + String(terms[1]),
+      };
+    }
     return {
       type: "nat",
       value: parseInt(terms[0]),
@@ -246,34 +257,32 @@ const calc = new Language([
 ]);
 
 const evalPmtlExp = (tree) => {
-  const leftInt = tree.left.value
-  const rightInt = tree.right.value
-  const valueInt = Number(tree.value)
-
+  const leftInt = tree.left.value;
+  const rightInt = tree.right.value;
+  const valueInt = Number(tree.value.value);
   switch (tree.type) {
-    case "plus": 
-      if((leftInt + rightInt) !== valueInt) {
-        throw new Error()
+    case "plus":
+      if (leftInt + rightInt !== valueInt) {
+        throw new Error();
       }
       return `${tree.content} by B-Plus {};\n`;
 
-    case "minus": 
-     if((leftInt - rightInt) !== valueInt) {
-      throw new Error()
-     } 
-     return `${tree.content} by B-Minus {};\n`
+    case "minus":
+      if (leftInt - rightInt !== valueInt) {
+        throw new Error();
+      }
+      return `${tree.content} by B-Minus {};\n`;
 
     case "times":
-      if((leftInt * rightInt)!==valueInt) {
-        throw new Error()
+      if (leftInt * rightInt !== valueInt) {
+        throw new Error();
       }
       return `${tree.content} by B-Times {};\n`;
 
     case "less":
-      if((leftInt < rightInt) === tree.value.value) {
-        return `${tree.content} by B-Lt {}\n`
+      if (leftInt < rightInt === tree.value.value) {
+        return `${tree.content} by B-Lt {}\n`;
       }
-    
     default:
       throw new Error();
   }
@@ -281,108 +290,258 @@ const evalPmtlExp = (tree) => {
 
 function calcBoolE(tree) {
   switch (tree.type) {
-    case "true":
-      return true;
-    case "false":
-      return false;
+    case "bool":
+      return tree.value;
     case "if":
-      const guard = calcBoolE(tree.guard)
-      if(guard) {
-        return calcBoolE(tree.left)
+      const guard = calcBoolE(tree.guard);
+      if (guard) {
+        return calcBoolE(tree.left);
       }
       return calcBoolE(tree.right);
-    case "less":
-      return tree.left < tree.right;
+    case "lt":
+      const leftInt = calcNatE(tree.left);
+      const rightInt = calcNatE(tree.right);
+      return leftInt < rightInt;
     default:
-      throw new Error()
-  }
-} 
-
-function calcNatE(tree) {
-  switch(tree.type) {
-    case "nat":
-      return tree.value
-    case "add":
-      return calcNatE(tree.left) + calcNatE(tree.right)
-    case "times":
-      return calcNatE(tree.left) * calcNatE(tree.right)
-    case "minus":
-      return calcNatE(tree.left) - calcNatE(tree.right)
-    case "if":
-    default: 
-      throw new Error()
+      throw new Error();
   }
 }
 
-const evalEvalExp = (tree) => {
+function calcNatE(tree) {
+  switch (tree.type) {
+    case "nat":
+      return tree.value;
+    case "add":
+      return calcNatE(tree.left) + calcNatE(tree.right);
+    case "mult":
+      return calcNatE(tree.left) * calcNatE(tree.right);
+    case "subtract":
+      return calcNatE(tree.left) - calcNatE(tree.right);
+    case "if":
+      const guard = calcBoolE(tree.guard);
+      if (guard) {
+        return calcNatE(tree.left);
+      }
+      return calcNatE(tree.right);
+    default:
+      throw new Error();
+  }
+}
+
+const evalExp = (tree) => {
   if (tree.type !== "eval") {
     return evalPmtlExp(tree);
   }
 
   switch (tree.body.type) {
-    case "add": {
-      // E-Plus
-      const n1 = calcAddMultNat(tree.body.left);
-      const premise1 = evalEvalExp({
+    case "nat": {
+      if (tree.body.value !== tree.value.value) {
+        throw new Error();
+      }
+      return `${tree.content} by E-Int {};\n`;
+    }
+
+    case "bool": {
+      if (tree.body.value !== tree.value.value) {
+        throw new Error();
+      }
+      return `${tree.content} by E-Bool {};\n`;
+    }
+
+    case "if": {
+      const guard = calcBoolE(tree.body.guard);
+      if (guard) {
+        const tree1 = {
+          type: "eval",
+          body: tree.body.guard,
+          value: { type: "bool", value: true, content: "true" },
+          content: `${tree.body.guard.content} evalto true`,
+        };
+        const premise1 = evalExp(tree1);
+        const tree2 = {
+          type: "eval",
+          body: tree.body.left,
+          value: tree.value,
+          content: `${tree.body.left.content} evalto ${tree.value.content}`,
+        };
+        const premise2 = evalExp(tree2);
+        return `${tree.content} by E-IfT {\n${premise1}${premise2}};\n`;
+      }
+      const tree1 = {
         type: "eval",
-        body: tree.body.left,
-        value: numToTree(n1),
-        content: `${tree.body.left.content} evalto ${numToNat(n1)}`,
-      });
-      const n2 = calcAddMultNat(tree.body.right);
-      const premise2 = evalEvalExp({
+        body: tree.body.guard,
+        value: { type: "bool", value: false, content: "false" },
+        content: `${tree.body.guard} evalto false`,
+      };
+      const premise1 = evalExp(tree1);
+      const tree2 = {
         type: "eval",
         body: tree.body.right,
-        value: numToTree(n2),
-        content: `${tree.body.right.content} evalto ${numToNat(n2)}`,
-      });
-      const premise3 = evalEvalExp({
-        type: "plus",
-        left: numToTree(n1),
-        right: numToTree(n2),
         value: tree.value,
-        content: `${numToNat(n1)} plus ${numToNat(n2)} is ${
-          tree.value.content
-        }`,
+        content: `${tree.body.right.content} evalto ${tree.value.content}`,
+      };
+      const premise2 = evalExp(tree2);
+      return `${tree.content} by E-IfF {\n${premise1}${premise2}};\n`;
+    }
+
+    case "add": {
+      // E-Plus
+      const leftInt = calcNatE(tree.body.left);
+      const leftTree = {
+        type: "nat",
+        value: leftInt,
+        content: String(leftInt),
+      };
+      const premise1 = evalExp({
+        type: "eval",
+        body: tree.body.left,
+        value: leftTree,
+        content: `${tree.body.left.content} evalto ${leftInt}`,
+      });
+
+      const rightInt = calcNatE(tree.body.right);
+      const rightTree = {
+        type: "nat",
+        value: rightInt,
+        content: String(rightInt),
+      };
+      const premise2 = evalExp({
+        type: "eval",
+        body: tree.body.right,
+        value: rightTree,
+        content: `${tree.body.right.content} evalto ${rightInt}`,
+      });
+      const premise3 = evalExp({
+        type: "plus",
+        left: leftTree,
+        right: rightTree,
+        value: tree.value,
+        content: `${leftInt} plus ${rightInt} is ${tree.value.content}`,
       });
       return `${tree.content} by E-Plus {\n${premise1}${premise2}${premise3}};\n`;
     }
-    case "mult": {
-      const n1 = calcAddMultNat(tree.body.left);
-      const premise1 = evalEvalExp({
+
+    case "subtract": {
+      // E-Minus
+      const leftInt = calcNatE(tree.body.left);
+      const leftTree = {
+        type: "nat",
+        value: leftInt,
+        content: String(leftInt),
+      };
+      const premise1 = evalExp({
         type: "eval",
         body: tree.body.left,
-        value: numToTree(n1),
-        content: `${tree.body.left.content} evalto ${numToNat(n1)}`,
+        value: leftTree,
+        content: `${tree.body.left.content} evalto ${leftInt}`,
       });
-      const n2 = calcAddMultNat(tree.body.right);
-      const premise2 = evalEvalExp({
+
+      const rightInt = calcNatE(tree.body.right);
+      const rightTree = {
+        type: "nat",
+        value: rightInt,
+        content: String(rightInt),
+      };
+      const premise2 = evalExp({
         type: "eval",
         body: tree.body.right,
-        value: numToTree(n2),
-        content: `${tree.body.right.content} evalto ${numToNat(n2)}`,
+        value: rightTree,
+        content: `${tree.body.right.content} evalto ${rightInt}`,
       });
-      const premise3 = evalEvalExp({
-        type: "times",
-        left: numToTree(n1),
-        right: numToTree(n2),
+      const premise3 = evalExp({
+        type: "minus",
+        left: leftTree,
+        right: rightTree,
         value: tree.value,
-        content: `${numToNat(n1)} times ${numToNat(n2)} is ${
-          tree.value.content
-        }`,
+        content: `${leftInt} minus ${rightInt} is ${tree.value.content}`,
+      });
+      return `${tree.content} by E-Minus {\n${premise1}${premise2}${premise3}};\n`;
+    }
+    case "mult": {
+      // E-Times
+      const leftInt = calcNatE(tree.body.left);
+      const leftTree = {
+        type: "nat",
+        value: leftInt,
+        content: String(leftInt),
+      };
+      const premise1 = evalExp({
+        type: "eval",
+        body: tree.body.left,
+        value: leftTree,
+        content: `${tree.body.left.content} evalto ${leftInt}`,
+      });
+
+      const rightInt = calcNatE(tree.body.right);
+      const rightTree = {
+        type: "nat",
+        value: rightInt,
+        content: String(rightInt),
+      };
+      const premise2 = evalExp({
+        type: "eval",
+        body: tree.body.right,
+        value: rightTree,
+        content: `${tree.body.right.content} evalto ${rightInt}`,
+      });
+
+      const premise3 = evalExp({
+        type: "times",
+        left: leftTree,
+        right: rightTree,
+        value: tree.value,
+        content: `${leftInt} times ${rightInt} is ${tree.value.content}`,
       });
       return `${tree.content} by E-Times {\n${premise1}${premise2}${premise3}};\n`;
     }
+
+    case "lt": {
+      // E-Lt
+      const leftInt = calcNatE(tree.body.left);
+      const leftTree = {
+        type: "nat",
+        value: leftInt,
+        content: String(leftInt),
+      };
+      const premise1 = evalExp({
+        type: "eval",
+        body: tree.body.left,
+        value: leftTree,
+        content: `${tree.body.left.content} evalto ${leftInt}`,
+      });
+
+      const rightInt = calcNatE(tree.body.right);
+      const rightTree = {
+        type: "nat",
+        value: rightInt,
+        content: String(rightInt),
+      };
+      const premise2 = evalExp({
+        type: "eval",
+        body: tree.body.right,
+        value: rightTree,
+        content: `${tree.body.right.content} evalto ${rightInt}`,
+      });
+
+      const premise3 = evalExp({
+        type: "less",
+        left: leftTree,
+        right: rightTree,
+        value: tree.value,
+        content: `${leftInt} less than ${rightInt} is ${tree.value.content}`,
+      });
+      return `${tree.content} by E-Lt {\n${premise1}${premise2}${premise3}};\n`;
+    }
+
     default:
       throw new Error("invalid input at evalEvalExp!");
   }
 };
 
 const calcEvalML1 = (question) => {
-  const result = calc.parse(question);
+  const result = calc.parse(question.replace("&lt;", "lt"));
   const tree = calc.evaluate(result);
-  console.log(tree);
-  return evalEvalExp(tree);
+  return evalExp(tree);
 };
 
 module.exports = calcEvalML1;

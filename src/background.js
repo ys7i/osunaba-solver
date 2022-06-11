@@ -34,5 +34,8 @@ const solve = (question, type) => {
 
 module.exports = solve;
 
-const answer = solve("2 lt 3 evalto true", "EvalML1");
-console.log(answer);
+// const answer = solve(
+//   "3 + (if -23 &lt; -2 * 8 then 8 else 2) + 4 evalto 15",
+//   "EvalML1"
+// );
+// console.log(answer);
