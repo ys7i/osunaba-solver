@@ -243,104 +243,35 @@ const calc = new Language([
   }),
 ]);
 
-const numToTree = (num) => {
-  if (num === 0) {
-    return { type: "zero", content: "Z" };
-  }
-  if (num > 0) {
-    const tree = numToTree(num - 1);
-    return {
-      type: "succ",
-      next: tree,
-      content: `S(${tree.content})`,
-    };
-  }
-};
+const evalPmtlExp = (tree) => {
+  const leftInt = parseInt(tree.left.value)
+  const rightInt = parseInt(tree.right.value)
+  const valueInt = Number(tree.value)
 
-const natToNum = (natTree) => {
-  let tree = natTree;
-  let num = 0;
-  while (tree.type === "succ") {
-    num += 1;
-    tree = tree.next;
-  }
-  return num;
-};
-
-const numToNat = (num) => {
-  if (num <= 0) {
-    return "Z";
-  }
-  return `S(${numToNat(num - 1)})`;
-};
-
-const calcAddMultNat = (tree) => {
-  if (tree.type === "succ" || tree.type === "zero") {
-    return natToNum(tree);
-  }
-  if (tree.type === "add") {
-    return calcAddMultNat(tree.left) + calcAddMultNat(tree.right);
-  }
-  if (tree.type === "mult") {
-    return calcAddMultNat(tree.left) * calcAddMultNat(tree.right);
-  }
-  throw new Error("invalid input!");
-};
-
-const calcTimes = (tree) => {
-  const leftNum = natToNum(tree.left);
-  const rightNum = natToNum(tree.right);
-  return leftNum * rightNum;
-};
-
-const evalExp = (tree) => {
   switch (tree.type) {
-    case "plus": {
-      if (tree.left.type === "zero") {
-        if (tree.right.content !== tree.value.content) {
-          throw new Error("this question is wrong!");
-        }
-        return `${tree.content} by P-Zero {};\n`;
+    case "plus": 
+      if((leftInt + rightInt) !== valueInt) {
+        throw new Error()
       }
-      const leftNum = natToNum(tree.left);
-      const newLeftNum = numToNat(leftNum - 1);
-      const valueNum = natToNum(tree.value);
-      const newValueNum = numToNat(valueNum - 1);
-      const newTree = {
-        ...tree,
-        left: tree.left.next,
-        value: tree.value.next,
-        content: `${newLeftNum} plus ${tree.right.content} is ${newValueNum} `,
-      };
-      const premise = evalExp(newTree);
-      return `${tree.content} by P-Succ {\n${premise}};\n`;
-    }
-    case "times": {
-      if (tree.left.type === "zero") {
-        if (tree.value.type !== "zero") {
-          throw new Error("this question is wrong");
-        }
-        return `${tree.content} by T-Zero {};\n`;
+      return `${tree.content} by B-Plus {};\n`;
+
+    case "minus": 
+     if((leftInt - rightInt) !== valueInt) {
+      throw new Error()
+     } 
+     return `${tree.content} by B-Minus {};\n`
+
+    case "times":
+      if((leftInt * rightInt)!==valueInt) {
+        throw new Error()
       }
-      const leftMinus1 = tree.left.content.replace(/(?:^S\()|(?:\)$)/g, "");
-      const newTree = { ...tree, left: tree.left.next };
-      const n3 = calcTimes(newTree);
-      const natN3 = numToNat(n3);
-      const premiseLexered = calc.parse(
-        `${leftMinus1} times ${tree.right.content} is ${natN3}`
-      );
-      const premise1Tree = calc.evaluate(premiseLexered);
-      const premise1 = evalExp(premise1Tree);
-      const premise2Tree = {
-        type: "plus",
-        left: tree.right,
-        right: premise1Tree.value,
-        value: tree.value,
-        content: `${tree.right.content} plus ${premise1Tree.value.content} is ${tree.value.content}`,
-      };
-      const premise2 = evalExp(premise2Tree);
-      return `${tree.content} by T-Succ {\n${premise1}${premise2}};\n`;
-    }
+      return `${tree.content} by B-Times {};\n`;
+
+    case "less":
+      if((leftInt < rightInt) === (tree.value === "true")) {
+        return `${tree.content} by B-Lt {}\n`
+      }
+    
     default:
       throw new Error();
   }
@@ -425,7 +356,6 @@ const evalEvalExp = (tree) => {
 
 const calcEvalML1 = (question) => {
   const result = calc.parse(question);
-  console.log(result);
   const tree = calc.evaluate(result);
   console.log(tree);
   return evalEvalExp(tree);
