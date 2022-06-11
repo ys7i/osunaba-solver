@@ -33,9 +33,10 @@ const calc = new Language([
       const terms = [].concat(...term.contents());
       if (terms.length > 1) {
         return {
-          type: "eval",
-          body: terms[1],
-          value: terms[3],
+          type: "if",
+          guard: terms[1],
+          left: terms[3],
+          right: terms[5],
           content: `if ${terms[1].content} then ${terms[3].content} evalto ${terms[5].content}`,
         };
       }
@@ -186,7 +187,7 @@ const calc = new Language([
       ["nat-exp", lit("plus"), "nat-exp", lit("is"), "nat-exp"],
       ["nat-exp", lit("times"), "nat-exp", lit("is"), "nat-exp"],
       ["nat-exp", lit("minus"), "nat-exp", lit("is"), "nat-exp"],
-      ["nat-exp", lit("less"), lit("than"), "nat-exp", lit("is"), "nat-exp"],
+      ["nat-exp", lit("less"), lit("than"), "nat-exp", lit("is"), "bool-exp"],
     ],
     (term) => {
       const terms = [].concat(...term.contents());
@@ -230,6 +231,7 @@ const calc = new Language([
     const terms = [].concat(...term.contents());
     return {
       type: terms[0],
+      value: terms[0] === "true",
       content: terms[1],
     };
   }),
@@ -244,8 +246,8 @@ const calc = new Language([
 ]);
 
 const evalPmtlExp = (tree) => {
-  const leftInt = parseInt(tree.left.value)
-  const rightInt = parseInt(tree.right.value)
+  const leftInt = tree.left.value
+  const rightInt = tree.right.value
   const valueInt = Number(tree.value)
 
   switch (tree.type) {
@@ -268,7 +270,7 @@ const evalPmtlExp = (tree) => {
       return `${tree.content} by B-Times {};\n`;
 
     case "less":
-      if((leftInt < rightInt) === (tree.value === "true")) {
+      if((leftInt < rightInt) === tree.value.value) {
         return `${tree.content} by B-Lt {}\n`
       }
     
@@ -277,25 +279,47 @@ const evalPmtlExp = (tree) => {
   }
 };
 
+function calcBoolE(tree) {
+  switch (tree.type) {
+    case "true":
+      return true;
+    case "false":
+      return false;
+    case "if":
+      const guard = calcBoolE(tree.guard)
+      if(guard) {
+        return calcBoolE(tree.left)
+      }
+      return calcBoolE(tree.right);
+    case "less":
+      return tree.left < tree.right;
+    default:
+      throw new Error()
+  }
+} 
+
+function calcNatE(tree) {
+  switch(tree.type) {
+    case "nat":
+      return tree.value
+    case "add":
+      return calcNatE(tree.left) + calcNatE(tree.right)
+    case "times":
+      return calcNatE(tree.left) * calcNatE(tree.right)
+    case "minus":
+      return calcNatE(tree.left) - calcNatE(tree.right)
+    case "if":
+    default: 
+      throw new Error()
+  }
+}
+
 const evalEvalExp = (tree) => {
   if (tree.type !== "eval") {
-    return evalExp(tree);
+    return evalPmtlExp(tree);
   }
 
   switch (tree.body.type) {
-    case "succ":
-    case "zero": {
-      // E-Const
-      if (tree.value.type !== "succ" && tree.value.type !== "zero") {
-        throw new Error();
-      }
-      const bodyNum = natToNum(tree.body);
-      const valueNum = natToNum(tree.value);
-      if (bodyNum !== valueNum) {
-        throw new Error("E-Const doesn't hold!");
-      }
-      return `${tree.content} by E-Const {};\n`;
-    }
     case "add": {
       // E-Plus
       const n1 = calcAddMultNat(tree.body.left);
